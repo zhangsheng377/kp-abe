@@ -1,0 +1,14 @@
+*.m4
+*.log
+*.status
+*.scan
+*depcomp
+*install-sh
+*Makefile.in
+*missing
+*output.*
+*requests
+*test_gmp
+*.o
+*.Po
+*traces.*
