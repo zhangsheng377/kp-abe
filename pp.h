@@ -1,7 +1,7 @@
 /*
  * pp.h
  *
- *  Created on: 2018å¹´3æœˆ14æ—¥
+ *  Created on: 2018å¹?3æœ?14æ—?
  *      Author: root
  */
 
@@ -14,28 +14,29 @@ class publicKey {
 public:
 	int top_level;
 	int attrNumber;
-	clt_pp * pp;
-	clt_state *sk;
+	clt_pp_t * pp;
+	clt_state_t *sk;
 	mpz_t *attribute;//´æh1 µ½hn,ÊÇÊôÐÔÐèÒªµÄ¶«Î÷
-	mpz_t encodingOfa;//gkµÄ°¢·¢
+	clt_elem_t *encodingOfa;//gkµÄ°¢·¢
 	publicKey() {
 	}
 	publicKey(int attrNumber) {
 		this->attrNumber = attrNumber;
 		attribute = (mpz_t*) malloc(sizeof(mpz_t) * attrNumber);
+		encodingOfa = clt_elem_new();
 
 		printf("publicKey init****************************************\n");
 	}
 
 	~publicKey() {
 		if (pp != NULL) {
-			clt_pp_delete(pp);
+			clt_pp_free(pp);
 		}
 		if (sk != NULL) {
-			clt_state_delete(sk);
+			clt_state_free(sk);
 		}
 		if (encodingOfa != NULL) {
-			mpz_clears(encodingOfa, NULL);
+			clt_elem_free(encodingOfa);
 		}
 		if (attribute != NULL) {
 			free(attribute);
