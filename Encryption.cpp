@@ -39,26 +39,20 @@ static void setUp(publicKey *pk, int serParam, int attrNumberz, int denth) {
 	int lambda = 10;
 	int pows[kappa], top_level[kappa];       //use for Mulitilinear Map
 	clt_state_t *sk;  							//Mulitilinear Map sercert key
-	clt_pp_t *pp;   
-	mpz_t modulus;								 //Mulitilinear Map Public key
+	clt_pp_t *pp;                                //Mulitilinear Map Public key
 	aes_randstate_t rng;
 	aes_randinit(rng);
 	for (int k = 0; k < kappa; k++) {
 		top_level[k] = kappa;
 	}
-	mpz_init_set_ui(modulus, 2);
+	
 	clt_params_t params = {
         .lambda = lambda,
         .kappa = kappa,
         .nzs = kappa,
-        .pows = pows,
+        .pows = top_level,
     };
-    clt_opt_params_t opts = {
-        .slots = 0,
-        .moduli = &modulus,
-        .nmoduli = 1,
-    };
-    sk = clt_state_new(&params, &opts, 0, default_flags, rng);
+    sk = clt_state_new(&params, NULL, 0, default_flags, rng);
 	pp = clt_pp_new(sk);
 
 	srand((unsigned) time(NULL));
@@ -391,13 +385,13 @@ int main() {
 	ssk * sk = new ssk(tree->nodeNumb);//ÕæÕýµÄË½Ô¿
 	keyGen(sk, tree, pk);
 
-	mpz_t result;
-	mpz_init(result);
+	clt_elem_t *result = clt_elem_new();
 	
 	//new !!! remove the encattr1
-	int isresultValid = decrypt(result, sk, ct, encattr, tree, pk);
+	int isresultValid = decrypt((MP_INT*)result, sk, ct, encattr, tree, pk);
 
 	if(isresultValid==1){
+		clt_elem_print(result);
 
 		int top_level[pk->top_level];  //top_level=3
 		for (int i = 0; i < pk->top_level; i++) {
@@ -409,17 +403,17 @@ int main() {
 			
 			mpz_set_ui(ten, pazz);
 			clt_encode((clt_elem_t*)codeTen, pk->sk, 1, &ten, top_level);  //g^0
-			clt_elem_sub((clt_elem_t*)codeTen, pk->pp, (clt_elem_t*)codeTen, (clt_elem_t*)result);    //g^0/result
+			clt_elem_sub((clt_elem_t*)codeTen, pk->pp, (clt_elem_t*)codeTen, result);    //g^0/result
 			if(clt_is_zero((clt_elem_t*)codeTen, pk->pp)==1){
 				message=pazz;break;
 			}else{
 			pazz++;
 			}
 		}while(true);
-		printf("The Message is %d\n",message);
+		printf("\nThe Message is %d\n",message);
 
 	}else{
-		printf("Can not decrypt the message!!\n");
+		printf("\nCan not decrypt the message!!\n");
 	}
 	
 
