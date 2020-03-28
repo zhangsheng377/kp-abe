@@ -30,10 +30,9 @@ int debugr2;
 int debugaw;
 int debugbw;
 
-static void setUp(PublicKey *publicKey, int serParam, int attrNumberz,
-                  int denth) {
+static PublicKey *setUp(int serParam, int attrNumber, int denth) {
   // Group //denth:群组的个数.数的层数加一 initalize
-  // serparam：安全参数:人，初始化/库需要的东西,attrNumberz:系统属性个数.denth:电路最大深度
+  // serparam：安全参数:人，初始化/库需要的东西,attrNumber:系统属性个数.denth:电路最大深度
   ulong default_flags = CLT_FLAG_NONE | CLT_FLAG_VERBOSE;
   int begin, end;  //定义开始和结束标志位
   begin = clock(); //开始计时
@@ -43,6 +42,8 @@ static void setUp(PublicKey *publicKey, int serParam, int attrNumberz,
   clt_state_t *sk;                   // Mulitilinear Map sercert key
   clt_pp_t *pp;                      // Mulitilinear Map Public key
   aes_randstate_t rng;
+  PublicKey *publicKey = new PublicKey(attrNumber);
+
   aes_randinit(rng);
   for (int k = 0; k < kappa; k++) {
     top_level[k] = kappa;
@@ -61,7 +62,7 @@ static void setUp(PublicKey *publicKey, int serParam, int attrNumberz,
 
   // initalie element  即 初始化gk阿发（pk->encodingOfa）
   // 初始化h1到hn（pk->attribute[i]）
-  for (int i = 0; i < attrNumberz; i++) {
+  for (int i = 0; i < attrNumber; i++) {
     mpz_init(publicKey->attribute[i]);
   }
   // random master key a; //随机生成阿发，主密钥是阿发/gk-1阿发方，这里是阿发
@@ -76,7 +77,7 @@ static void setUp(PublicKey *publicKey, int serParam, int attrNumberz,
   }
   mpz_t temp;
   mpz_init(temp);
-  for (int i = 0; i < attrNumberz; i++) {
+  for (int i = 0; i < attrNumber; i++) {
     mpz_set_ui(temp, (rand() % 100) + 1);
     clt_encode((clt_elem_t *)publicKey->attribute[i], sk, 1, &temp, pows);
     gmp_printf("The public h%d=%Zd\n", i,
@@ -85,7 +86,7 @@ static void setUp(PublicKey *publicKey, int serParam, int attrNumberz,
   aes_randclear(rng);
   mpz_clear(temp);
 
-  publicKey->attrNumber = attrNumberz;
+  publicKey->attrNumber = attrNumber;
   publicKey->pp = pp;
   publicKey->sk = sk;
   publicKey->top_level = kappa;
@@ -93,9 +94,11 @@ static void setUp(PublicKey *publicKey, int serParam, int attrNumberz,
   printf("setup time is %d\n", end - begin); //差为时间，单位毫秒
   printf("*********setUp() "
          "Complete!!!***************************************************\n");
+
+  return publicKey;
 }
 
-static void encrypt(CT *ct, PublicKey *publicKey, int *att, int M) {
+static void encrypt(CT *ct, PublicKey *publicKey, int *att, int message) {
   // initalize elements
   for (int k = 0; k < publicKey->attrNumber; k++) {
     mpz_inits(ct->ci[k], NULL);
@@ -114,7 +117,7 @@ static void encrypt(CT *ct, PublicKey *publicKey, int *att, int M) {
                   s); //(gk阿发)s次方
   mpz_t codeM, mmm;
   mpz_inits(codeM, NULL);
-  mpz_init_set_ui(mmm, M);
+  mpz_init_set_ui(mmm, message);
   int top_level[publicKey->top_level];
   for (int i = 0; i < publicKey->top_level; i++) {
     top_level[i] = publicKey->top_level;
@@ -122,7 +125,7 @@ static void encrypt(CT *ct, PublicKey *publicKey, int *att, int M) {
   clt_encode((clt_elem_t *)codeM, publicKey->sk, 1, &mmm,
              top_level); //输入的明文M
   clt_elem_add((clt_elem_t *)ct->CM, publicKey->pp, (clt_elem_t *)result,
-               (clt_elem_t *)codeM); // M*(gk阿发)s次方
+               (clt_elem_t *)codeM); // message*(gk阿发)s次方
                                      //这两个循环就是得到V i属于s，Ci=hi的s方
   for (int i = 0; i < publicKey->attrNumber; i++) {
     if (att[i] == 1) {
@@ -303,7 +306,6 @@ static void keyGen(ssk *gssk, Tree *tree, PublicKey *publicKey) {
 
 static int evaluate(mpz_t ele, Node *p, ssk *ssk, CT *ct,
                     PublicKey *publicKey) {
-
   if (p->Nodetype >= 3) { //输入导线
     int attrIndex = p->Nodetype - 3;
     int isZero = mpz_cmp_d(ct->ci[attrIndex], 0); //？？？？？？
@@ -388,8 +390,8 @@ static int evaluate(mpz_t ele, Node *p, ssk *ssk, CT *ct,
   }
 }
 
-static bool decrypt(int &decryptMessage, ssk *ssk, CT *ct, int *attribute,
-                    Tree *tree, PublicKey *publicKey) {
+static bool decrypt(int &decryptMessage, Tree *tree, ssk *ssk, CT *ct,
+                    PublicKey *publicKey) {
   mpz_t E, rnqs;
   clt_elem_t *result = clt_elem_new();
   mpz_inits(E, rnqs, NULL);
@@ -431,8 +433,7 @@ static bool decrypt(int &decryptMessage, ssk *ssk, CT *ct, int *attribute,
   return false;
 }
 
-int main() {
-
+Tree *config() {
   Node *a0 = new Node();
   Node *a1 = new Node();
   Node *root = new Node();
@@ -450,8 +451,17 @@ int main() {
   a0->setParent(root);
   a1->setParent(root);
 
-  PublicKey *publicKey = new PublicKey(5);
-  setUp(publicKey, 10, 5, 3);
+  Tree *tree = new Tree();
+  tree->root = root;
+  tree->nodeNumb = 3;
+
+  return tree;
+}
+
+int main() {
+  Tree *tree = config();
+
+  PublicKey *publicKey = setUp(10, 5, 3);
 
   // new !!!
   int encattr[5] = {
@@ -461,22 +471,19 @@ int main() {
 
   CT *ct = new CT(5);
 
-  int M;
-  printf("please input M:");
-  if (scanf("%d", &M) <= 0) {
+  int message;
+  printf("please input message:");
+  if (scanf("%d", &message) <= 0) {
     printf("You did not enter any number.\n");
     return 0;
   }
-  encrypt(ct, publicKey, encattr, M);
+  encrypt(ct, publicKey, encattr, message);
 
-  Tree *tree = new Tree();
-  tree->root = root;
-  tree->nodeNumb = 3;
   ssk *sk = new ssk(tree->nodeNumb); //真正的私钥
   keyGen(sk, tree, publicKey);
 
   int decryptMessage = 0;
-  if (decrypt(decryptMessage, sk, ct, encattr, tree, publicKey)) {
+  if (decrypt(decryptMessage, tree, sk, ct, publicKey)) {
     printf("\nThe Message is %d\n", decryptMessage);
   } else {
     printf("\nCan not decrypt the Message!!\n");
