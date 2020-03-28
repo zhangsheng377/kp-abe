@@ -13,3 +13,4 @@
 *.Po
 *traces.*
 compile
+.vscode

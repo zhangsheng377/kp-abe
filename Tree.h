@@ -10,10 +10,11 @@
 
 #include "Node.h"
 
-class Tree {
+class Tree
+{
 public:
-  Node *root;
-  int nodeNumb;
+    Node *root;
+    int nodeNumb;
 };
 
 #endif /* TREE_H_ */
