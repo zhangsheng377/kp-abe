@@ -8,15 +8,12 @@
 #ifndef TREE_H_
 #define TREE_H_
 
-
 #include "Node.h"
 
-
-class Tree{
-  public:
-    Node* root;
-int nodeNumb;
+class Tree {
+public:
+  Node *root;
+  int nodeNumb;
 };
-
 
 #endif /* TREE_H_ */
