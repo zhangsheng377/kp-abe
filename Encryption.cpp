@@ -96,8 +96,10 @@ static PublicKey *setUp(int serParam, int attrNumber, int denth)
     return publicKey;
 }
 
-static void encrypt(CT *ct, PublicKey *publicKey, int *att, int message)
+static CT *encrypt(PublicKey *publicKey, int *att, int message)
 {
+    CT *ct = new CT(publicKey->attrNumber);
+
     // initalize elements
     for (int k = 0; k < publicKey->attrNumber; k++)
     {
@@ -150,6 +152,8 @@ static void encrypt(CT *ct, PublicKey *publicKey, int *att, int message)
 
     printf("*********Encrypt() "
            "Complete********************************************\n");
+
+    return ct;
 }
 static int depth(Node *curr)
 {
@@ -162,9 +166,11 @@ static int depth(Node *curr)
     return dep;
 }
 
-static void keyGen(ssk *gssk, Tree *tree, PublicKey *publicKey)
+static ssk *keyGen(Tree *tree, PublicKey *publicKey)
 {
+    ssk *gssk = new ssk(tree->nodeNumb);
     int nodenumber = tree->nodeNumb;
+
     for (int i = 0; i < gssk->nodeNumber * 4; i++)
     {
         mpz_init(
@@ -322,6 +328,8 @@ static void keyGen(ssk *gssk, Tree *tree, PublicKey *publicKey)
     }
     printf("*********KeyGen() "
            "Complete********************************************\n");
+
+    return gssk;
 }
 
 static int evaluate(mpz_t ele, Node *p, ssk *ssk, CT *ct,
@@ -472,7 +480,7 @@ static bool decrypt(int &decryptMessage, Tree *tree, ssk *ssk, CT *ct,
     return false;
 }
 
-Tree *config()
+Tree *buildTree()
 {
     Node *a0 = new Node();
     Node *a1 = new Node();
@@ -498,31 +506,40 @@ Tree *config()
     return tree;
 }
 
-int main()
+bool inputMessage(int &message)
 {
-    Tree *tree = config();
-
-    PublicKey *publicKey = setUp(10, 5, 3);
-
-    // new !!!
-    int encattr[5] = {
-        1, 1, 0, 0,
-        0}; // can decrypt   系统属性个数==用户的属性个数
-            //	int encattr[5] = { 1, 0, 0, 0, 0};	//can not decrypt
-
-    CT *ct = new CT(5);
-
-    int message;
     printf("please input message:");
     if (scanf("%d", &message) <= 0)
     {
         printf("You did not enter any number.\n");
+        return false;
+    }
+    return true;
+}
+
+int main()
+{
+    const int attrNumber = 5; // 系统属性个数
+    const int serparam = 10;  // 安全参数
+    const int depth = 3;      // 电路最大深度
+
+    // can decrypt   系统属性个数==用户的属性个数
+    // int encattr[5] = { 1, 0, 0, 0, 0};	//can not decrypt
+    int encattr[attrNumber] = {1, 1, 0, 0, 0};
+
+    Tree *tree = buildTree();
+
+    PublicKey *publicKey = setUp(serparam, attrNumber, depth);
+
+    int message;
+    if (!inputMessage(message))
+    {
         return 0;
     }
-    encrypt(ct, publicKey, encattr, message);
 
-    ssk *sk = new ssk(tree->nodeNumb); //真正的私钥
-    keyGen(sk, tree, publicKey);
+    CT *ct = encrypt(publicKey, encattr, message);
+
+    ssk *sk = keyGen(tree, publicKey); //真正的私钥
 
     int decryptMessage = 0;
     if (decrypt(decryptMessage, tree, sk, ct, publicKey))
