@@ -56,9 +56,11 @@ public:
     mpz_t gs;
     mpz_t *ci;
     int attrNumber;
+    clt_elem_t *result;
     CT(int attrNumber)
     {
         this->attrNumber = attrNumber;
+        result = clt_elem_new();
         ci = (mpz_t *)malloc(sizeof(mpz_t) * attrNumber);
     }
 

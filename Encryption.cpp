@@ -430,53 +430,58 @@ static int evaluate(mpz_t ele, Node *p, ssk *ssk, CT *ct,
     }
 }
 
-static bool decrypt(int &decryptMessage, Tree *tree, ssk *ssk, CT *ct,
-                    PublicKey *publicKey)
+static bool transform(Tree *tree, ssk *ssk, CT *ct, PublicKey *publicKey)
 {
     mpz_t E, rnqs;
-    clt_elem_t *result = clt_elem_new();
+
     mpz_inits(E, rnqs, NULL);
 
     int aa = evaluate(rnqs, tree->root, ssk, ct, publicKey); // rnqs=gk^rnqs
-    if (aa == 1)
+    if (aa == 0)
     {
-        clt_elem_mul((clt_elem_t *)E, publicKey->pp, (clt_elem_t *)ssk->kh,
-                     (clt_elem_t *)ct->gs); // e'=e(KH,g^s)
-        clt_elem_add(
-            (clt_elem_t *)E, publicKey->pp, (clt_elem_t *)E,
-            (clt_elem_t *)rnqs); // E=e(KH,g^s)*(gk^rnqs)=gk^(as-rnqs)*gk^rnqs=gk^as
-        clt_elem_sub(
-            result, publicKey->pp, (clt_elem_t *)ct->CM,
-            (clt_elem_t *)E); // result=CM/E=CM/gk^as     result就是解密出来的东西
-
-        int top_level[publicKey->top_level]; // top_level=3
-        for (int i = 0; i < publicKey->top_level; i++)
-        {
-            top_level[i] = publicKey->top_level;
-        }
-        mpz_t ten, codeTen;
-        mpz_inits(codeTen, ten, NULL);
-        int testNum = 0;
-        decryptMessage = 0;
-        do
-        {
-            mpz_set_ui(ten, testNum);
-            clt_encode((clt_elem_t *)codeTen, publicKey->sk, 1, &ten,
-                       top_level); // g^0
-            clt_elem_sub((clt_elem_t *)codeTen, publicKey->pp, (clt_elem_t *)codeTen,
-                         result); // g^0/result
-            if (clt_is_zero((clt_elem_t *)codeTen, publicKey->pp))
-            {
-                decryptMessage = testNum;
-                break;
-            }
-            else
-            {
-                testNum++;
-            }
-        } while (true);
-        return true;
+        return false;
     }
+
+    clt_elem_mul((clt_elem_t *)E, publicKey->pp, (clt_elem_t *)ssk->kh, (clt_elem_t *)ct->gs); // e'=e(KH,g^s)
+    clt_elem_add((clt_elem_t *)E, publicKey->pp, (clt_elem_t *)E, (clt_elem_t *)rnqs);         // E=e(KH,g^s)*(gk^rnqs)=gk^(as-rnqs)*gk^rnqs=gk^as
+    clt_elem_sub(ct->result, publicKey->pp, (clt_elem_t *)ct->CM, (clt_elem_t *)E);            // result=CM/E=CM/gk^as     result就是解密出来的东西
+
+    return true;
+}
+
+static bool decrypt(int &decryptMessage, Tree *tree, ssk *ssk, CT *ct,
+                    PublicKey *publicKey)
+{
+    int top_level[publicKey->top_level]; // top_level=3
+    mpz_t ten, codeTen;
+    int testNum = 0;
+    // const int tryNum = 500;
+
+    mpz_inits(codeTen, ten, NULL);
+    for (int i = 0; i < publicKey->top_level; i++)
+    {
+        top_level[i] = publicKey->top_level;
+    }
+
+    do
+    {
+        mpz_set_ui(ten, testNum);
+        clt_encode((clt_elem_t *)codeTen, publicKey->sk, 1, &ten,
+                   top_level); // g^0
+        clt_elem_sub((clt_elem_t *)codeTen, publicKey->pp, (clt_elem_t *)codeTen,
+                     ct->result); // g^0/result
+        if (clt_is_zero((clt_elem_t *)codeTen, publicKey->pp))
+        {
+            decryptMessage = testNum;
+            return true;
+        }
+        else
+        {
+            testNum++;
+        }
+        // } while (testNum < tryNum);
+    } while (true);
+
     return false;
 }
 
@@ -541,6 +546,11 @@ int main()
 
     ssk *sk = keyGen(tree, publicKey); //真正的私钥
 
+    if (!transform(tree, sk, ct, publicKey))
+    {
+        printf("\nencattr is wrong. Can not decrypt the Message!!\n");
+    }
+
     int decryptMessage = 0;
     if (decrypt(decryptMessage, tree, sk, ct, publicKey))
     {
@@ -550,4 +560,6 @@ int main()
     {
         printf("\nCan not decrypt the Message!!\n");
     }
+
+    return 0;
 }
